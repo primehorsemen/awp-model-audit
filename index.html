@@ -192,6 +192,18 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
 .footer-actions{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border-soft);}
 .footer-actions .fa-note{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);}
 
+/* ---------- Copyright footer ---------- */
+.app-footer{
+  border-top:1px solid var(--border-soft);
+  margin-top:8px;
+}
+.app-footer-inner{
+  max-width:1320px;margin:0 auto;
+  padding:18px 28px 26px;
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:0.03em;
+  color:var(--text-faint);text-align:center;
+}
+
 /* ---------- Print ---------- */
 @media print{
   body{background:#fff;color:#111;}
@@ -204,6 +216,8 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
   .badge{border:1px solid currentColor;}
   .tbl-scroll{max-height:none;overflow:visible;}
   .chart-box{height:200px;}
+  .app-footer{border-top:1px solid #ccc;margin-top:14px;}
+  .app-footer-inner{color:#666;padding:12px 0;}
 }
 @media (max-width:900px){
   .cards-row{grid-template-columns:repeat(2,1fr);}
@@ -388,9 +402,16 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
 
 </div>
 
+<footer class="app-footer">
+  <div class="app-footer-inner">© <span id="footerYear"></span> Primehorsemen Inc. All rights reserved. Protected by Primehorsemen Inc.</div>
+</footer>
+
 <script>
 (function(){
   "use strict";
+
+  const fy = document.getElementById('footerYear');
+  if(fy) fy.textContent = new Date().getFullYear();
 
   /* ===================== STATE ===================== */
   const state = {
