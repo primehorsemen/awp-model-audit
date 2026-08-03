@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWP MODEL AUDIT — 3D Model Compliance Verification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#0B1220;
+  --bg-grid:#0E1526;
+  --surface:#121B2E;
+  --surface-2:#17233A;
+  --border:#22314E;
+  --border-soft:#1B2A44;
+  --text:#E7ECF3;
+  --text-dim:#8B98AC;
+  --text-faint:#54617A;
+  --amber:#F5A623;
+  --amber-soft:rgba(245,166,35,0.14);
+  --green:#3DDC84;
+  --green-soft:rgba(61,220,132,0.14);
+  --red:#FF5C5C;
+  --red-soft:rgba(255,92,92,0.14);
+  --blue:#4FA3FF;
+  --blue-soft:rgba(79,163,255,0.14);
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    linear-gradient(var(--bg-grid) 1px, transparent 1px) 0 0/100% 28px,
+    linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px) 0 0/28px 100%,
+    var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+}
+::selection{background:var(--amber);color:#141414;}
+a{color:var(--blue);}
+
+/* ---------- Title block ---------- */
+.titleblock{
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg, rgba(18,27,46,0.9), rgba(18,27,46,0.55));
+  backdrop-filter:blur(6px);
+  position:sticky;top:0;z-index:50;
+}
+.titleblock-inner{
+  max-width:1320px;margin:0 auto;
+  padding:16px 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+}
+.tb-left{display:flex;align-items:center;gap:14px;}
+.tb-mark{
+  width:38px;height:38px;flex:none;
+  border:1.5px solid var(--amber);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-weight:600;font-size:12px;color:var(--amber);
+  position:relative;
+}
+.tb-mark::before,.tb-mark::after{content:'';position:absolute;width:6px;height:6px;border:1px solid var(--amber);}
+.tb-mark::before{top:-4px;left:-4px;border-right:none;border-bottom:none;}
+.tb-mark::after{bottom:-4px;right:-4px;border-left:none;border-top:none;}
+.tb-title h1{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:0.04em;margin:0;}
+.tb-title p{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);margin:2px 0 0;letter-spacing:0.03em;}
+.tb-right{display:flex;align-items:center;gap:10px;font-family:var(--font-mono);font-size:11px;color:var(--text-dim);}
+.tb-meta{display:none;text-align:right;line-height:1.5;}
+.tb-meta b{color:var(--text);font-weight:600;}
+.tb-actions{display:flex;gap:8px;}
+
+/* ---------- Buttons ---------- */
+.btn{
+  font-family:var(--font-mono);font-size:12px;font-weight:500;letter-spacing:0.02em;
+  padding:9px 16px;border-radius:2px;border:1px solid var(--border);
+  background:var(--surface-2);color:var(--text);cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;transition:border-color .15s,background .15s;
+}
+.btn:hover{border-color:var(--text-faint);}
+.btn-primary{background:var(--amber);border-color:var(--amber);color:#171100;font-weight:600;}
+.btn-primary:hover{background:#ffb43a;border-color:#ffb43a;}
+.btn-ghost{background:transparent;}
+.btn-sm{padding:6px 11px;font-size:11px;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* ---------- Layout ---------- */
+.wrap{max-width:1320px;margin:0 auto;padding:36px 28px 90px;}
+.screen{display:none;}
+.screen.active{display:block;}
+.eyebrow{font-family:var(--font-mono);font-size:11px;color:var(--amber);letter-spacing:0.14em;text-transform:uppercase;margin:0 0 8px;}
+.h2{font-family:var(--font-display);font-size:26px;font-weight:700;margin:0 0 6px;letter-spacing:-0.01em;}
+.sub{color:var(--text-dim);font-size:14px;max-width:640px;line-height:1.55;margin:0 0 32px;}
+
+/* ---------- Upload screen ---------- */
+.dropzone{
+  border:1.5px dashed var(--border);
+  border-radius:2px;
+  padding:64px 32px;
+  text-align:center;
+  position:relative;
+  cursor:pointer;
+  transition:border-color .15s, background .15s;
+  background:rgba(255,255,255,0.012);
+}
+.dropzone::before,.dropzone::after,.dropzone .c2,.dropzone .c3{content:'';position:absolute;width:14px;height:14px;border-color:var(--text-faint);}
+.dropzone::before{top:10px;left:10px;border-top:1.5px solid;border-left:1.5px solid;}
+.dropzone::after{top:10px;right:10px;border-top:1.5px solid;border-right:1.5px solid;}
+.dropzone .c2{bottom:10px;left:10px;border-bottom:1.5px solid;border-left:1.5px solid;}
+.dropzone .c3{bottom:10px;right:10px;border-bottom:1.5px solid;border-right:1.5px solid;}
+.dropzone.drag{border-color:var(--amber);background:var(--amber-soft);}
+.dropzone.drag::before,.dropzone.drag::after,.dropzone.drag .c2,.dropzone.drag .c3{border-color:var(--amber);}
+.dz-icon{font-family:var(--font-mono);font-size:34px;color:var(--text-faint);margin-bottom:14px;}
+.dz-title{font-family:var(--font-display);font-size:18px;font-weight:600;margin-bottom:6px;}
+.dz-sub{color:var(--text-dim);font-size:13px;}
+.dz-formats{margin-top:22px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;}
+.chip{font-family:var(--font-mono);font-size:10.5px;padding:4px 9px;border:1px solid var(--border);color:var(--text-dim);border-radius:2px;letter-spacing:0.03em;}
+
+.source-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px;}
+.source-card{border:1px solid var(--border-soft);padding:18px 20px;background:var(--surface);}
+.source-card .sc-tag{font-family:var(--font-mono);font-size:10px;color:var(--amber);letter-spacing:0.1em;margin-bottom:8px;}
+.source-card h3{font-family:var(--font-display);font-size:14.5px;margin:0 0 6px;}
+.source-card p{color:var(--text-dim);font-size:12.5px;line-height:1.5;margin:0;}
+
+/* ---------- Mapping screen ---------- */
+.panel{border:1px solid var(--border-soft);background:var(--surface);margin-bottom:20px;}
+.panel-head{padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between;}
+.panel-head h3{font-family:var(--font-display);font-size:14.5px;margin:0;font-weight:600;}
+.panel-head .ph-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:3px;}
+.panel-body{padding:20px;}
+
+.map-table{width:100%;border-collapse:collapse;}
+.map-table th{text-align:left;font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);letter-spacing:0.06em;text-transform:uppercase;padding:0 10px 10px;font-weight:500;}
+.map-table td{padding:8px 10px;border-top:1px solid var(--border-soft);vertical-align:middle;}
+.map-field{font-family:var(--font-mono);font-size:12.5px;}
+.map-field .req{color:var(--amber);margin-left:4px;}
+select,input[type=text]{
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+  font-family:var(--font-mono);font-size:12px;padding:7px 9px;border-radius:2px;width:100%;
+}
+select:focus,input:focus{outline:1px solid var(--amber);}
+.sample-val{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;display:inline-block;}
+
+.adv-toggle{font-family:var(--font-mono);font-size:11.5px;color:var(--blue);cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:6px;margin-top:6px;}
+.adv-panel{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border-soft);}
+.adv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.adv-grid label{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);display:block;margin-bottom:5px;}
+
+/* ---------- Dashboard ---------- */
+.cards-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px;}
+.card{border:1px solid var(--border-soft);background:var(--surface);padding:18px 20px;position:relative;}
+.card .cd-label{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;}
+.card .cd-val{font-family:var(--font-display);font-size:30px;font-weight:700;line-height:1;}
+.card .cd-note{font-size:11.5px;color:var(--text-dim);margin-top:8px;}
+.card.accent-green .cd-val{color:var(--green);}
+.card.accent-red .cd-val{color:var(--red);}
+.card.accent-amber .cd-val{color:var(--amber);}
+
+.charts-row{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:16px;margin-bottom:20px;}
+.chart-box{height:230px;position:relative;}
+
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.toolbar input[type=text]{width:220px;}
+.seg{display:flex;border:1px solid var(--border);border-radius:2px;overflow:hidden;}
+.seg button{
+  font-family:var(--font-mono);font-size:11px;padding:7px 12px;background:var(--surface-2);
+  color:var(--text-dim);border:none;border-right:1px solid var(--border);cursor:pointer;
+}
+.seg button:last-child{border-right:none;}
+.seg button.active{background:var(--amber);color:#171100;font-weight:600;}
+
+table.data{width:100%;border-collapse:collapse;}
+table.data th{text-align:left;font-family:var(--font-mono);font-size:10px;color:var(--text-faint);letter-spacing:0.05em;text-transform:uppercase;padding:9px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);}
+table.data td{padding:9px 10px;border-bottom:1px solid var(--border-soft);font-size:12.5px;}
+table.data tr:hover td{background:rgba(255,255,255,0.015);}
+.tbl-scroll{max-height:360px;overflow:auto;}
+.mono{font-family:var(--font-mono);font-size:12px;}
+.badge{font-family:var(--font-mono);font-size:10px;padding:3px 8px;border-radius:2px;letter-spacing:0.03em;display:inline-block;}
+.badge.critical{background:var(--red-soft);color:var(--red);}
+.badge.high{background:var(--red-soft);color:var(--red);}
+.badge.medium{background:var(--amber-soft);color:var(--amber);}
+.badge.low{background:var(--blue-soft);color:var(--blue);}
+.badge.pass{background:var(--green-soft);color:var(--green);}
+.badge.fail{background:var(--red-soft);color:var(--red);}
+.empty-row td{text-align:center;color:var(--text-faint);padding:30px;font-family:var(--font-mono);font-size:12px;}
+
+.footer-actions{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border-soft);}
+.footer-actions .fa-note{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);}
+
+/* ---------- Print ---------- */
+@media print{
+  body{background:#fff;color:#111;}
+  .titleblock, .no-print{display:none !important;}
+  .wrap{padding:0;max-width:100%;}
+  .card,.panel,.source-card{border:1px solid #ccc;background:#fff;break-inside:avoid;}
+  .cd-val{color:#111 !important;}
+  table.data th{color:#555;background:#fff;}
+  table.data td{color:#111;}
+  .badge{border:1px solid currentColor;}
+  .tbl-scroll{max-height:none;overflow:visible;}
+  .chart-box{height:200px;}
+}
+@media (max-width:900px){
+  .cards-row{grid-template-columns:repeat(2,1fr);}
+  .charts-row{grid-template-columns:1fr;}
+  .source-grid{grid-template-columns:1fr;}
+  .adv-grid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div class="titleblock">
+  <div class="titleblock-inner">
+    <div class="tb-left">
+      <div class="tb-mark">3D</div>
+      <div class="tb-title">
+        <h1>AWP MODEL AUDIT</h1>
+        <p>3D MODEL COMPLIANCE VERIFICATION — NAVISWORKS · PDMS/AVEVA · SP3D</p>
+      </div>
+    </div>
+    <div class="tb-right">
+      <div class="tb-meta" id="tbMeta"></div>
+      <div class="tb-actions" id="tbActions"></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- SCREEN 1: UPLOAD -->
+  <section class="screen active" id="screen-upload">
+    <p class="eyebrow">Step 01 — Upload</p>
+    <h2 class="h2">Upload your 3D model report</h2>
+    <p class="sub">Verify Advanced Work Packaging compliance (CWA / CWP / IWP / EWP) against element exports from Navisworks, PDMS/AVEVA or SP3D. All data is processed entirely in your browser — nothing is uploaded to a server.</p>
+
+    <div class="dropzone" id="dropzone">
+      <span class="c2"></span><span class="c3"></span>
+      <div class="dz-icon">⌁</div>
+      <div class="dz-title">Drag a file here, or click to browse</div>
+      <div class="dz-sub">Element/item report — not a 3D model file (.nwd/.nwc/.rvt/.dgn)</div>
+      <div class="dz-formats">
+        <span class="chip">.CSV</span>
+        <span class="chip">.XLSX / .XLS</span>
+        <span class="chip">.XML</span>
+      </div>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.xml" style="display:none">
+    </div>
+    <div id="uploadError" style="display:none;margin-top:14px;font-family:var(--font-mono);font-size:12px;color:var(--red);"></div>
+
+    <div class="source-grid">
+      <div class="source-card">
+        <div class="sc-tag">01 — NAVISWORKS</div>
+        <h3>Element / Selection Report</h3>
+        <p>CSV or XML export from the Selection Tree / Item Properties, including custom attribute columns for CWA/CWP/IWP.</p>
+      </div>
+      <div class="source-card">
+        <div class="sc-tag">02 — PDMS / AVEVA</div>
+        <h3>Attribute Export</h3>
+        <p>CSV/XLSX export from PML or Data Access, with UDAs (User Defined Attributes) holding the work package codes.</p>
+      </div>
+      <div class="source-card">
+        <div class="sc-tag">03 — SP3D</div>
+        <h3>Workshare / Reports</h3>
+        <p>CSV/XLSX export from SmartPlant 3D Reports with Tag Number and Work Package Code columns.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN 2: MAPPING -->
+  <section class="screen" id="screen-mapping">
+    <p class="eyebrow">Step 02 — Column Mapping</p>
+    <h2 class="h2">Match your file's columns to AWP fields</h2>
+    <p class="sub">The system attempts to detect columns automatically. Confirm or adjust the mapping below before running the compliance check.</p>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Field Mapping</h3>
+          <div class="ph-sub" id="mapFileInfo">—</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <table class="map-table">
+          <thead>
+            <tr><th style="width:26%">AWP Field</th><th style="width:34%">Detected Column</th><th>Sample Value</th></tr>
+          </thead>
+          <tbody id="mapTableBody"></tbody>
+        </table>
+
+        <div class="adv-toggle" id="advToggle">▸ Advanced settings — naming patterns (regex)</div>
+        <div class="adv-panel" id="advPanel">
+          <div class="adv-grid">
+            <div><label>CWA PATTERN</label><input type="text" id="pat-cwa" class="mono"></div>
+            <div><label>CWP PATTERN</label><input type="text" id="pat-cwp" class="mono"></div>
+            <div><label>IWP PATTERN</label><input type="text" id="pat-iwp" class="mono"></div>
+            <div><label>EWP PATTERN</label><input type="text" id="pat-ewp" class="mono"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn btn-ghost" id="backToUpload">← Back</button>
+      <button class="btn btn-primary" id="runCheck">Run Compliance Check →</button>
+    </div>
+  </section>
+
+  <!-- SCREEN 3: DASHBOARD -->
+  <section class="screen" id="screen-dashboard">
+    <p class="eyebrow no-print">Step 03 — Report</p>
+    <h2 class="h2" id="dashTitle">AWP Compliance Report</h2>
+    <p class="sub" id="dashSub">—</p>
+
+    <div class="cards-row" id="cardsRow"></div>
+
+    <div class="charts-row">
+      <div class="panel"><div class="panel-head"><h3>Compliance by Discipline</h3></div><div class="panel-body"><div class="chart-box" id="chartDiscipline"></div></div></div>
+      <div class="panel"><div class="panel-head"><h3>Issue Type Breakdown</h3></div><div class="panel-body"><div class="chart-box" id="chartIssues"></div></div></div>
+      <div class="panel"><div class="panel-head"><h3>Hierarchy Structure</h3></div><div class="panel-body"><div class="chart-box" id="chartHierarchy"></div></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Compliance Issues List</h3>
+          <div class="ph-sub" id="issuesCount">—</div>
+        </div>
+        <div class="toolbar no-print">
+          <input type="text" id="issueSearch" placeholder="Search code / element ID…">
+          <div class="seg" id="severityFilter">
+            <button class="active" data-sev="all">All</button>
+            <button data-sev="critical">Critical</button>
+            <button data-sev="high">High</button>
+            <button data-sev="medium">Medium</button>
+            <button data-sev="low">Low</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        <div class="tbl-scroll">
+          <table class="data">
+            <thead><tr><th>Severity</th><th>Issue Type</th><th>Code</th><th>Affected Elements</th><th>Message</th></tr></thead>
+            <tbody id="issuesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>Element Browser</h3>
+          <div class="ph-sub" id="elementsCount">—</div>
+        </div>
+        <div class="toolbar no-print">
+          <input type="text" id="elementSearch" placeholder="Search ID / description…">
+          <div class="seg" id="statusFilter">
+            <button class="active" data-st="all">All</button>
+            <button data-st="fail">Failed</button>
+            <button data-st="pass">Passed</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        <div class="tbl-scroll">
+          <table class="data">
+            <thead><tr><th>Status</th><th>Element ID</th><th>Description</th><th>Discipline</th><th>CWA</th><th>CWP</th><th>IWP</th><th>Issues</th></tr></thead>
+            <tbody id="elementsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-actions no-print">
+      <button class="btn btn-ghost" id="newAudit">↺ New Audit</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn" id="exportCsvBtn">↓ Export Issues (CSV)</button>
+        <button class="btn btn-primary" id="downloadPdfBtn">⎙ Download PDF Report</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ===================== STATE ===================== */
+  const state = {
+    fileName:'',
+    fileType:'',
+    headers:[],
+    rows:[],
+    mapping:{elementId:'',description:'',discipline:'',status:'',cwa:'',cwp:'',iwp:'',ewp:''},
+    patterns:{cwa:'^CWA-\\d{3}$',cwp:'^CWP-\\d{4}$',iwp:'^IWP-\\d{4}$',ewp:'^EWP-\\d{3}$'},
+    processed:[],
+    issues:[],
+    charts:{}
+  };
+
+  const FIELD_DEFS = [
+    {key:'elementId', label:'Element ID', required:true, keywords:['element id','elementid','item id','object id','uniqueid','unique id','guid','tag number','tag no','id']},
+    {key:'description', label:'Element Description', required:false, keywords:['description','element name','item name','name']},
+    {key:'discipline', label:'Discipline', required:false, keywords:['discipline','disc','system']},
+    {key:'status', label:'Install Status', required:false, keywords:['install status','construction status','status']},
+    {key:'cwa', label:'CWA Code', required:false, keywords:['cwa','construction work area','work area']},
+    {key:'cwp', label:'CWP Code', required:true, keywords:['cwp','construction work package']},
+    {key:'iwp', label:'IWP Code', required:false, keywords:['iwp','installation work package']},
+    {key:'ewp', label:'EWP Code', required:false, keywords:['ewp','engineering work package']}
+  ];
+
+  const ISSUE_TYPES = {
+    missing_cwp:{label:'Missing CWP', severity:'critical'},
+    missing_iwp:{label:'Missing IWP', severity:'medium'},
+    naming:{label:'Naming Non-Compliance', severity:'medium'},
+    hierarchy:{label:'Hierarchy Conflict', severity:'high'},
+    referential:{label:'Invalid Reference', severity:'high'},
+    duplicate:{label:'Duplicate ID', severity:'high'}
+  };
+
+  /* ===================== NAV ===================== */
+  function showScreen(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    renderTbActions(id);
+  }
+
+  function renderTbActions(id){
+    const meta = document.getElementById('tbMeta');
+    const actions = document.getElementById('tbActions');
+    actions.innerHTML = '';
+    if(id==='screen-upload'){ meta.style.display='none'; return; }
+    meta.style.display='block';
+    meta.innerHTML = `FILE: <b>${escapeHtml(state.fileName||'—')}</b><br>ELEMENTS: <b>${state.rows.length}</b>`;
+  }
+
+  /* ===================== FILE INTAKE ===================== */
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('fileInput');
+  dropzone.addEventListener('click', ()=>fileInput.click());
+  ['dragenter','dragover'].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.remove('drag');}));
+  dropzone.addEventListener('drop', e=>{ if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+  fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
+
+  function showUploadError(msg){
+    const el = document.getElementById('uploadError');
+    el.style.display='block'; el.textContent = msg;
+  }
+
+  function handleFile(file){
+    document.getElementById('uploadError').style.display='none';
+    const name = file.name;
+    const ext = name.split('.').pop().toLowerCase();
+    state.fileName = name;
+    state.fileType = ext;
+
+    if(ext==='csv'){
+      Papa.parse(file,{header:true, skipEmptyLines:true, complete:res=>{
+        ingestRows(res.data, res.meta.fields||[]);
+      }, error:err=>showUploadError('Failed to read CSV: '+err.message)});
+    } else if(ext==='xlsx' || ext==='xls'){
+      const reader = new FileReader();
+      reader.onload = e=>{
+        try{
+          const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet, {defval:''});
+          const headers = json.length ? Object.keys(json[0]) : [];
+          ingestRows(json, headers);
+        }catch(err){ showUploadError('Failed to read Excel file: '+err.message); }
+      };
+      reader.readAsArrayBuffer(file);
+    } else if(ext==='xml'){
+      const reader = new FileReader();
+      reader.onload = e=>{
+        try{
+          const parsed = parseXmlToRows(e.target.result);
+          if(!parsed.rows.length){ showUploadError('No repeating element structure was detected in the XML.'); return; }
+          ingestRows(parsed.rows, parsed.headers);
+        }catch(err){ showUploadError('Failed to read XML: '+err.message); }
+      };
+      reader.readAsText(file);
+    } else {
+      showUploadError('Unsupported file format. Please use CSV, XLSX or XML.');
+    }
+  }
+
+  function parseXmlToRows(text){
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    if(doc.querySelector('parsererror')) throw new Error('Invalid XML');
+    // find the most frequently repeated tag name -> treat as row element
+    const counts = {};
+    doc.querySelectorAll('*').forEach(el=>{ counts[el.tagName] = (counts[el.tagName]||0)+1; });
+    let rowTag=null, max=1;
+    Object.keys(counts).forEach(tag=>{ if(counts[tag]>max){ max=counts[tag]; rowTag=tag; } });
+    if(!rowTag) return {rows:[],headers:[]};
+    const nodes = Array.from(doc.getElementsByTagName(rowTag));
+    const headerSet = new Set();
+    const rows = nodes.map(node=>{
+      const obj = {};
+      Array.from(node.attributes||[]).forEach(attr=>{ obj[attr.name]=attr.value; headerSet.add(attr.name); });
+      Array.from(node.children).forEach(child=>{
+        if(child.children.length===0){ obj[child.tagName]=child.textContent.trim(); headerSet.add(child.tagName); }
+      });
+      return obj;
+    }).filter(o=>Object.keys(o).length>0);
+    return {rows, headers:Array.from(headerSet)};
+  }
+
+  function ingestRows(rows, headers){
+    if(!rows || !rows.length){ showUploadError('The file does not contain any data rows.'); return; }
+    state.rows = rows;
+    state.headers = headers.length?headers:Object.keys(rows[0]);
+    guessMapping();
+    renderMappingScreen();
+    showScreen('screen-mapping');
+  }
+
+  /* ===================== MAPPING ===================== */
+  function guessMapping(){
+    const headers = state.headers;
+    FIELD_DEFS.forEach(f=>{
+      let best=''; let bestScore=-1;
+      headers.forEach(h=>{
+        const hl = h.toLowerCase().trim();
+        f.keywords.forEach((kw,idx)=>{
+          if(hl===kw){ const score=100-idx; if(score>bestScore){bestScore=score;best=h;} }
+          else if(hl.includes(kw)){ const score=50-idx; if(score>bestScore){bestScore=score;best=h;} }
+        });
+      });
+      state.mapping[f.key]=best;
+    });
+  }
+
+  function renderMappingScreen(){
+    document.getElementById('mapFileInfo').textContent = `${state.fileName} — ${state.rows.length} rows detected, ${state.headers.length} columns`;
+    const tbody = document.getElementById('mapTableBody');
+    tbody.innerHTML='';
+    FIELD_DEFS.forEach(f=>{
+      const tr = document.createElement('tr');
+      const sample = state.mapping[f.key] ? (state.rows[0][state.mapping[f.key]]||'') : '';
+      tr.innerHTML = `
+        <td class="map-field">${f.label}${f.required?'<span class="req">*</span>':''}</td>
+        <td><select data-field="${f.key}"><option value="">— None —</option>${state.headers.map(h=>`<option value="${escapeHtml(h)}" ${state.mapping[f.key]===h?'selected':''}>${escapeHtml(h)}</option>`).join('')}</select></td>
+        <td><span class="sample-val mono">${escapeHtml(String(sample))}</span></td>`;
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll('select').forEach(sel=>{
+      sel.addEventListener('change', e=>{
+        state.mapping[e.target.dataset.field] = e.target.value;
+        const row = tbody.querySelectorAll('tr')[Array.from(tbody.querySelectorAll('select')).indexOf(e.target)];
+        const sample = e.target.value ? (state.rows[0][e.target.value]||'') : '';
+        row.querySelector('.sample-val').textContent = String(sample);
+      });
+    });
+    document.getElementById('pat-cwa').value = state.patterns.cwa;
+    document.getElementById('pat-cwp').value = state.patterns.cwp;
+    document.getElementById('pat-iwp').value = state.patterns.iwp;
+    document.getElementById('pat-ewp').value = state.patterns.ewp;
+  }
+
+  document.getElementById('advToggle').addEventListener('click', ()=>{
+    const p = document.getElementById('advPanel');
+    const open = p.style.display==='block';
+    p.style.display = open?'none':'block';
+    document.getElementById('advToggle').textContent = (open?'▸':'▾')+' Advanced settings — naming patterns (regex)';
+  });
+
+  document.getElementById('backToUpload').addEventListener('click', ()=>showScreen('screen-upload'));
+
+  document.getElementById('runCheck').addEventListener('click', ()=>{
+    if(!state.mapping.elementId || !state.mapping.cwp){
+      alert('Please map at least "Element ID" and "CWP Code" before continuing.');
+      return;
+    }
+    try{
+      state.patterns.cwa = document.getElementById('pat-cwa').value || state.patterns.cwa;
+      state.patterns.cwp = document.getElementById('pat-cwp').value || state.patterns.cwp;
+      state.patterns.iwp = document.getElementById('pat-iwp').value || state.patterns.iwp;
+      state.patterns.ewp = document.getElementById('pat-ewp').value || state.patterns.ewp;
+      runComplianceCheck();
+      showScreen('screen-dashboard');
+      renderDashboard();
+    }catch(err){
+      console.error(err);
+      alert('The compliance check failed to run.\n\nError: '+err.message+'\n\nPlease open Developer Tools (F12 → Console) for details, or share this error message so it can be fixed.');
+    }
+  });
+
+  document.getElementById('newAudit').addEventListener('click', ()=>{
+    state.rows=[]; state.headers=[]; state.processed=[]; state.issues=[];
+    fileInput.value='';
+    showScreen('screen-upload');
+  });
+
+  /* ===================== COMPLIANCE ENGINE ===================== */
+  function safeRegex(pattern){
+    try{ return new RegExp(pattern); }catch(e){ return null; }
+  }
+
+  function runComplianceCheck(){
+    const m = state.mapping;
+    const reCwa = safeRegex(state.patterns.cwa);
+    const reCwp = safeRegex(state.patterns.cwp);
+    const reIwp = safeRegex(state.patterns.iwp);
+    const reEwp = safeRegex(state.patterns.ewp);
+
+    const processed = state.rows.map((r,idx)=>({
+      _idx:idx,
+      id: (m.elementId? String(r[m.elementId]??'').trim() : ('ROW-'+idx)) || ('ROW-'+idx),
+      description: m.description? String(r[m.description]??'').trim() : '',
+      discipline: m.discipline? String(r[m.discipline]??'').trim() : 'Unspecified',
+      status: m.status? String(r[m.status]??'').trim() : '',
+      cwa: m.cwa? String(r[m.cwa]??'').trim() : '',
+      cwp: m.cwp? String(r[m.cwp]??'').trim() : '',
+      iwp: m.iwp? String(r[m.iwp]??'').trim() : '',
+      ewp: m.ewp? String(r[m.ewp]??'').trim() : '',
+      issues:[]
+    }));
+
+    // ---- hierarchy + referential maps ----
+    const cwpParents = {};   // cwp -> Set(cwa)
+    const iwpParents = {};   // iwp -> Set(cwp)
+    const knownCwp = new Set();
+    processed.forEach(row=>{
+      if(row.cwp) knownCwp.add(row.cwp);
+      if(row.cwp && row.cwa){ (cwpParents[row.cwp] = cwpParents[row.cwp]||new Set()).add(row.cwa); }
+      if(row.iwp && row.cwp){ (iwpParents[row.iwp] = iwpParents[row.iwp]||new Set()).add(row.cwp); }
+    });
+    const idCounts = {};
+    processed.forEach(row=>{ idCounts[row.id] = (idCounts[row.id]||0)+1; });
+
+    const issueBuckets = {}; // type|code -> {type,code,severity,elementIds:Set,message}
+
+    function addIssue(row, type, code, message){
+      row.issues.push(type);
+      const key = type+'|'+code;
+      if(!issueBuckets[key]){
+        issueBuckets[key] = {type, code, severity:ISSUE_TYPES[type].severity, elementIds:new Set(), message};
+      }
+      issueBuckets[key].elementIds.add(row.id);
+    }
+
+    processed.forEach(row=>{
+      // A. Completeness — CWP
+      if(!row.cwp){
+        addIssue(row,'missing_cwp', row.id, 'Element has no CWP code assigned.');
+      }
+      // B. Completeness — IWP (only flagged if IWP field is mapped at all)
+      if(m.iwp && !row.iwp){
+        addIssue(row,'missing_iwp', row.id, 'Element has no IWP code assigned.');
+      }
+      // C. Naming convention
+      if(row.cwa && reCwa && !reCwa.test(row.cwa)) addIssue(row,'naming', row.cwa, `CWA code "${row.cwa}" does not match the pattern ${state.patterns.cwa}`);
+      if(row.cwp && reCwp && !reCwp.test(row.cwp)) addIssue(row,'naming', row.cwp, `CWP code "${row.cwp}" does not match the pattern ${state.patterns.cwp}`);
+      if(row.iwp && reIwp && !reIwp.test(row.iwp)) addIssue(row,'naming', row.iwp, `IWP code "${row.iwp}" does not match the pattern ${state.patterns.iwp}`);
+      if(row.ewp && reEwp && !reEwp.test(row.ewp)) addIssue(row,'naming', row.ewp, `EWP code "${row.ewp}" does not match the pattern ${state.patterns.ewp}`);
+      // D. Hierarchy conflicts
+      if(row.cwp && cwpParents[row.cwp] && cwpParents[row.cwp].size>1){
+        addIssue(row,'hierarchy', row.cwp, `CWP "${row.cwp}" is linked to more than one CWA (${Array.from(cwpParents[row.cwp]).join(', ')}).`);
+      }
+      if(row.iwp && iwpParents[row.iwp] && iwpParents[row.iwp].size>1){
+        addIssue(row,'hierarchy', row.iwp, `IWP "${row.iwp}" is linked to more than one CWP (${Array.from(iwpParents[row.iwp]).join(', ')}).`);
+      }
+      // E. Referential integrity — IWP must reference a CWP that exists in dataset
+      if(row.iwp && row.cwp && !knownCwp.has(row.cwp)){
+        addIssue(row,'referential', row.iwp, `IWP "${row.iwp}" references CWP "${row.cwp}", which does not exist in the dataset.`);
+      }
+      // F. Duplicate element id
+      if(m.elementId && idCounts[row.id]>1){
+        addIssue(row,'duplicate', row.id, `Element ID "${row.id}" appears ${idCounts[row.id]} times in the report.`);
+      }
+    });
+
+    const issues = Object.values(issueBuckets).map(b=>({
+      type:b.type, label:ISSUE_TYPES[b.type].label, code:b.code, severity:b.severity,
+      message:b.message, elementIds:Array.from(b.elementIds), count:b.elementIds.size
+    })).sort((a,b)=>{
+      const order={critical:0,high:1,medium:2,low:3};
+      return order[a.severity]-order[b.severity] || b.count-a.count;
+    });
+
+    state.processed = processed;
+    state.issues = issues;
+  }
+
+  /* ===================== DASHBOARD RENDER ===================== */
+  function renderDashboard(){
+    const total = state.processed.length;
+    const compliant = state.processed.filter(r=>r.issues.length===0).length;
+    const compliancePct = total? Math.round((compliant/total)*1000)/10 : 0;
+    const critical = state.issues.filter(i=>i.severity==='critical').reduce((s,i)=>s+i.count,0);
+    const missingCwp = state.processed.filter(r=>!r.cwp).length;
+
+    document.getElementById('dashSub').textContent =
+      `File: ${state.fileName} · ${total} elements analysed · Generated ${new Date().toLocaleString('en-GB')}`;
+
+    document.getElementById('cardsRow').innerHTML = `
+      <div class="card"><div class="cd-label">Total Elements</div><div class="cd-val">${total.toLocaleString()}</div><div class="cd-note">from ${state.fileName}</div></div>
+      <div class="card ${compliancePct>=90?'accent-green':compliancePct>=70?'accent-amber':'accent-red'}"><div class="cd-label">Overall Compliance</div><div class="cd-val">${compliancePct}%</div><div class="cd-note">${compliant.toLocaleString()} elements fully compliant</div></div>
+      <div class="card accent-red"><div class="cd-label">Critical Issues</div><div class="cd-val">${critical.toLocaleString()}</div><div class="cd-note">elements missing a CWP code</div></div>
+      <div class="card accent-amber"><div class="cd-label">CWP Not Assigned</div><div class="cd-val">${missingCwp.toLocaleString()}</div><div class="cd-note">${total? Math.round((missingCwp/total)*1000)/10:0}% of all elements</div></div>
+    `;
+
+    renderCharts();
+    renderIssuesTable('all','');
+    renderElementsTable('all','');
+
+    document.getElementById('issueSearch').oninput = e=>renderIssuesTable(currentSev,e.target.value);
+    document.getElementById('elementSearch').oninput = e=>renderElementsTable(currentSt,e.target.value);
+
+    document.querySelectorAll('#severityFilter button').forEach(btn=>{
+      btn.onclick = ()=>{
+        document.querySelectorAll('#severityFilter button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active'); currentSev = btn.dataset.sev;
+        renderIssuesTable(currentSev, document.getElementById('issueSearch').value);
+      };
+    });
+    document.querySelectorAll('#statusFilter button').forEach(btn=>{
+      btn.onclick = ()=>{
+        document.querySelectorAll('#statusFilter button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active'); currentSt = btn.dataset.st;
+        renderElementsTable(currentSt, document.getElementById('elementSearch').value);
+      };
+    });
+  }
+
+  let currentSev='all', currentSt='all';
+
+  /* ---- Dependency-free SVG chart helpers (no external library required) ---- */
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const PALETTE = ['#F5A623','#FF5C5C','#4FA3FF','#3DDC84','#B98CE0','#5B6980','#E884B0','#6BD1C9'];
+
+  function svgEl(tag, attrs){
+    const el = document.createElementNS(SVGNS, tag);
+    Object.keys(attrs||{}).forEach(k=>el.setAttribute(k, attrs[k]));
+    return el;
+  }
+
+  function renderVerticalBarChart(container, labels, values, opts){
+    opts = opts||{};
+    const W=440, H=210, padL=34, padR=10, padT=14, padB=36;
+    const max = opts.max!==undefined ? opts.max : Math.max(1, ...values);
+    const innerW = W-padL-padR, innerH = H-padT-padB;
+    const n = labels.length || 1;
+    const bw = Math.min(34, innerW/n*0.55);
+    const gap = innerW/n;
+    const svg = svgEl('svg', {viewBox:`0 0 ${W} ${H}`, width:'100%', height:'100%', preserveAspectRatio:'xMidYMid meet'});
+    // gridlines
+    [0,25,50,75,100].forEach(pct=>{
+      const gv = opts.max!==undefined ? (pct/100*max) : pct;
+      if(gv>max && pct!==0) return;
+      const y = padT + innerH - (gv/max)*innerH;
+      svg.appendChild(svgEl('line',{x1:padL,y1:y,x2:W-padR,y2:y,stroke:'rgba(255,255,255,0.07)','stroke-width':1}));
+      const t = svgEl('text',{x:padL-6,y:y+3,fill:'#54617A','font-size':'8.5','font-family':'IBM Plex Mono, monospace','text-anchor':'end'});
+      t.textContent = opts.pct ? Math.round(gv)+'%' : Math.round(gv);
+      svg.appendChild(t);
+    });
+    labels.forEach((lab,i)=>{
+      const v = values[i];
+      const bh = max>0 ? (v/max)*innerH : 0;
+      const x = padL + gap*i + (gap-bw)/2;
+      const y = padT + innerH - bh;
+      const color = opts.colors ? opts.colors[i%opts.colors.length] : (opts.color||'#F5A623');
+      svg.appendChild(svgEl('rect',{x, y, width:bw, height:Math.max(bh,0.5), fill:color, rx:1}));
+      const vt = svgEl('text',{x:x+bw/2, y:y-5, fill:'#E7ECF3','font-size':'9','font-family':'IBM Plex Mono, monospace','text-anchor':'middle'});
+      vt.textContent = opts.pct ? v+'%' : v;
+      svg.appendChild(vt);
+      const lt = svgEl('text',{x:x+bw/2, y:H-padB+13, fill:'#8B98AC','font-size':'8','font-family':'IBM Plex Mono, monospace','text-anchor':'middle'});
+      const short = String(lab).length>10 ? String(lab).slice(0,9)+'…' : lab;
+      lt.textContent = short;
+      svg.appendChild(lt);
+    });
+    container.innerHTML=''; container.appendChild(svg);
+  }
+
+  function renderHorizontalBarChart(container, labels, values, colors){
+    const W=440, H=210, padL=48, padR=40, padT=8, padB=8;
+    const innerW = W-padL-padR, innerH = H-padT-padB;
+    const n = labels.length || 1;
+    const bh = Math.min(28, innerH/n*0.55);
+    const gap = innerH/n;
+    const max = Math.max(1, ...values);
+    const svg = svgEl('svg', {viewBox:`0 0 ${W} ${H}`, width:'100%', height:'100%', preserveAspectRatio:'xMidYMid meet'});
+    labels.forEach((lab,i)=>{
+      const v = values[i];
+      const bw = max>0 ? (v/max)*innerW : 0;
+      const y = padT + gap*i + (gap-bh)/2;
+      const lt = svgEl('text',{x:padL-8, y:y+bh/2+3, fill:'#8B98AC','font-size':'9.5','font-family':'IBM Plex Mono, monospace','text-anchor':'end'});
+      lt.textContent = lab;
+      svg.appendChild(lt);
+      svg.appendChild(svgEl('rect',{x:padL, y, width:Math.max(bw,0.5), height:bh, fill:colors[i%colors.length], rx:1}));
+      const vt = svgEl('text',{x:padL+bw+8, y:y+bh/2+3, fill:'#E7ECF3','font-size':'10','font-family':'IBM Plex Mono, monospace'});
+      vt.textContent = v;
+      svg.appendChild(vt);
+    });
+    container.innerHTML=''; container.appendChild(svg);
+  }
+
+  function renderDoughnutChart(container, labels, values, colors){
+    const total = values.reduce((s,v)=>s+v,0);
+    const size=150, cx=75, cy=75, r=52, sw=22;
+    const circumf = 2*Math.PI*r;
+    const svg = svgEl('svg', {viewBox:`0 0 ${size} ${size}`, width:size, height:size});
+    if(total===0){
+      svg.appendChild(svgEl('circle',{cx,cy,r,fill:'none',stroke:'#1B2A44','stroke-width':sw}));
+    } else {
+      let offset=0;
+      labels.forEach((lab,i)=>{
+        const frac = values[i]/total;
+        const dash = frac*circumf;
+        const circle = svgEl('circle',{
+          cx,cy,r, fill:'none', stroke:colors[i%colors.length], 'stroke-width':sw,
+          'stroke-dasharray':`${dash} ${circumf-dash}`, 'stroke-dashoffset':-offset,
+          transform:`rotate(-90 ${cx} ${cy})`
+        });
+        svg.appendChild(circle);
+        offset += dash;
+      });
+    }
+    const ct = svgEl('text',{x:cx,y:cy+4,fill:'#E7ECF3','font-size':'17','font-family':'Space Grotesk, sans-serif','text-anchor':'middle','font-weight':'700'});
+    ct.textContent = total;
+    svg.appendChild(ct);
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText='display:flex;align-items:center;gap:14px;height:100%;';
+    const svgWrap = document.createElement('div'); svgWrap.style.flex='none'; svgWrap.appendChild(svg);
+    const legend = document.createElement('div');
+    legend.style.cssText='font-family:IBM Plex Mono,monospace;font-size:10.5px;display:flex;flex-direction:column;gap:6px;overflow:auto;max-height:180px;';
+    labels.forEach((lab,i)=>{
+      const row = document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:7px;color:#8B98AC;';
+      row.innerHTML = `<span style="width:9px;height:9px;background:${colors[i%colors.length]};display:inline-block;border-radius:1px;flex:none;"></span><span style="color:#E7ECF3;">${values[i]}</span><span>${lab}</span>`;
+      legend.appendChild(row);
+    });
+    wrap.appendChild(svgWrap); wrap.appendChild(legend);
+    container.innerHTML=''; container.appendChild(wrap);
+  }
+
+  function renderCharts(){
+    // Discipline compliance
+    const byDisc = {};
+    state.processed.forEach(r=>{
+      byDisc[r.discipline] = byDisc[r.discipline] || {total:0, ok:0};
+      byDisc[r.discipline].total++;
+      if(r.issues.length===0) byDisc[r.discipline].ok++;
+    });
+    const discLabels = Object.keys(byDisc).sort((a,b)=>byDisc[b].total-byDisc[a].total).slice(0,8);
+    const discValues = discLabels.map(d=>Math.round((byDisc[d].ok/byDisc[d].total)*1000)/10);
+    renderVerticalBarChart(document.getElementById('chartDiscipline'), discLabels, discValues, {max:100, pct:true, color:'#F5A623'});
+
+    // Issue breakdown doughnut
+    const byType = {};
+    state.issues.forEach(i=>{ byType[i.label] = (byType[i.label]||0)+i.count; });
+    const typeLabels = Object.keys(byType);
+    renderDoughnutChart(document.getElementById('chartIssues'), typeLabels, typeLabels.map(k=>byType[k]), PALETTE);
+
+    // Hierarchy structure
+    const uniq = (field)=>new Set(state.processed.map(r=>r[field]).filter(Boolean)).size;
+    const hierLabels = ['CWA','CWP','IWP','EWP'];
+    const hierData = [uniq('cwa'), uniq('cwp'), uniq('iwp'), uniq('ewp')];
+    renderHorizontalBarChart(document.getElementById('chartHierarchy'), hierLabels, hierData, ['#4FA3FF','#F5A623','#3DDC84','#B98CE0']);
+  }
+
+  function renderIssuesTable(sev, search){
+    const body = document.getElementById('issuesBody');
+    const q = (search||'').toLowerCase().trim();
+    let list = state.issues.filter(i=> sev==='all' || i.severity===sev);
+    if(q) list = list.filter(i=> i.code.toLowerCase().includes(q) || i.elementIds.some(e=>e.toLowerCase().includes(q)));
+    document.getElementById('issuesCount').textContent = `${list.length} issue categories · ${list.reduce((s,i)=>s+i.count,0)} affected elements`;
+    body.innerHTML = list.length ? list.map(i=>`
+      <tr>
+        <td><span class="badge ${i.severity}">${sevLabel(i.severity)}</span></td>
+        <td>${i.label}</td>
+        <td class="mono">${escapeHtml(i.code)}</td>
+        <td class="mono">${i.count.toLocaleString()}</td>
+        <td>${escapeHtml(i.message)}</td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="5">No issues match the current filters.</td></tr>`;
+  }
+
+  function renderElementsTable(st, search){
+    const body = document.getElementById('elementsBody');
+    const q = (search||'').toLowerCase().trim();
+    let list = state.processed;
+    if(st==='fail') list = list.filter(r=>r.issues.length>0);
+    if(st==='pass') list = list.filter(r=>r.issues.length===0);
+    if(q) list = list.filter(r=> r.id.toLowerCase().includes(q) || r.description.toLowerCase().includes(q));
+    document.getElementById('elementsCount').textContent = `${list.length.toLocaleString()} of ${state.processed.length.toLocaleString()} elements`;
+    const shown = list.slice(0,500);
+    body.innerHTML = shown.length ? shown.map(r=>`
+      <tr>
+        <td><span class="badge ${r.issues.length?'fail':'pass'}">${r.issues.length?'FAILED':'PASSED'}</span></td>
+        <td class="mono">${escapeHtml(r.id)}</td>
+        <td>${escapeHtml(r.description)||'—'}</td>
+        <td>${escapeHtml(r.discipline)}</td>
+        <td class="mono">${escapeHtml(r.cwa)||'—'}</td>
+        <td class="mono">${escapeHtml(r.cwp)||'—'}</td>
+        <td class="mono">${escapeHtml(r.iwp)||'—'}</td>
+        <td class="mono">${r.issues.length}</td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="8">No elements match the current filters.</td></tr>`;
+    if(list.length>500){
+      body.innerHTML += `<tr class="empty-row"><td colspan="8">Showing 500 of ${list.length} elements. Use search to narrow the results.</td></tr>`;
+    }
+  }
+
+  function sevLabel(s){
+    return {critical:'CRITICAL',high:'HIGH',medium:'MEDIUM',low:'LOW'}[s]||s.toUpperCase();
+  }
+
+  /* ===================== EXPORTS ===================== */
+  document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
+    const rows = [['Severity','Issue Type','Code','Affected Element Count','Affected Element IDs','Message']];
+    state.issues.forEach(i=> rows.push([i.severity, i.label, i.code, i.count, i.elementIds.join(' | '), i.message]));
+    const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download = `AWP_Compliance_Issues_${dateStamp()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('downloadPdfBtn').addEventListener('click', ()=>{ window.print(); });
+
+  function dateStamp(){
+    const d = new Date();
+    return d.toISOString().slice(0,10).replace(/-/g,'');
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+})();
+</script>
+</body>
+</html>
