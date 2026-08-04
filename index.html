@@ -189,6 +189,26 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
 .badge.fail{background:var(--red-soft);color:var(--red);}
 .empty-row td{text-align:center;color:var(--text-faint);padding:30px;font-family:var(--font-mono);font-size:12px;}
 
+/* ---------- Bulk assignment bar ---------- */
+.assign-bar{
+  padding:14px 20px;background:var(--amber-soft);border-top:1px solid var(--border-soft);border-bottom:1px solid var(--border-soft);
+}
+.assign-bar-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;}
+.assign-count{font-family:var(--font-mono);font-size:11.5px;color:var(--amber);font-weight:600;white-space:nowrap;padding-bottom:8px;}
+.assign-field{display:flex;flex-direction:column;gap:4px;}
+.assign-field label{font-family:var(--font-mono);font-size:9.5px;color:var(--text-faint);letter-spacing:0.05em;}
+.assign-field input{width:120px;padding:6px 8px;font-size:11.5px;}
+.assign-note{font-family:var(--font-mono);font-size:10px;color:var(--text-faint);margin-top:8px;line-height:1.5;}
+td.chk-cell{width:30px;text-align:center;}
+td.chk-cell input, th input[type=checkbox]{cursor:pointer;}
+
+.no-awp-banner{
+  border:1px solid var(--red); background:var(--red-soft);
+  padding:14px 18px; margin-bottom:20px; display:flex; align-items:center; gap:12px;
+}
+.no-awp-banner strong{color:var(--red);font-family:var(--font-display);font-size:13.5px;}
+.no-awp-banner span{color:var(--text-dim);font-size:12.5px;}
+
 .footer-actions{display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border-soft);}
 .footer-actions .fa-note{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);}
 
@@ -325,11 +345,43 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
     </div>
   </section>
 
+  <!-- SCREEN 2B: NO AWP DETECTED -->
+  <section class="screen" id="screen-noawp">
+    <p class="eyebrow" style="color:var(--red);">Automatic Scan Result</p>
+    <h2 class="h2">No AWP nomenclature detected in this report</h2>
+    <p class="sub">Every column header and a sample of cell values were scanned automatically for CWA / CWP / IWP / EWP codes. None were found — no manual mapping is needed to confirm this.</p>
+
+    <div class="panel" style="border-color:var(--red);">
+      <div class="panel-head">
+        <div>
+          <h3 style="color:var(--red);">⚠ Flagged: This model export has not been work-packaged</h3>
+          <div class="ph-sub" id="noAwpFileInfo">—</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.6;margin:0 0 16px;">This typically means the report was exported straight from the 3D model authoring tool (Navisworks/PDMS/AVEVA/SP3D) before AWP tagging was applied — i.e. exactly the state a model is in <em>before</em> CWA/CWP/IWP assignment happens. Detected columns:</p>
+        <table class="map-table">
+          <thead><tr><th style="width:40%">Column Detected</th><th>Sample Value</th></tr></thead>
+          <tbody id="noAwpColsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <button class="btn btn-ghost" id="noAwpBack">← Back</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn" id="noAwpMapManually">Map Columns Manually</button>
+        <button class="btn btn-primary" id="noAwpGenerateAnyway">Generate Compliance Report Anyway →</button>
+      </div>
+    </div>
+  </section>
+
   <!-- SCREEN 3: DASHBOARD -->
   <section class="screen" id="screen-dashboard">
     <p class="eyebrow no-print">Step 03 — Report</p>
     <h2 class="h2" id="dashTitle">AWP Compliance Report</h2>
     <p class="sub" id="dashSub">—</p>
+    <div id="noAwpBanner" style="display:none;"></div>
 
     <div class="cards-row" id="cardsRow"></div>
 
@@ -381,10 +433,28 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
           </div>
         </div>
       </div>
+
+      <div class="assign-bar no-print" id="assignBar" style="display:none;">
+        <div class="assign-bar-row">
+          <span class="assign-count" id="assignCount">0 selected</span>
+          <div class="assign-field"><label>CWA</label><input type="text" id="assignCwa" list="dlCwa" placeholder="e.g. CWA-001"></div>
+          <div class="assign-field"><label>CWP</label><input type="text" id="assignCwp" list="dlCwp" placeholder="e.g. CWP-0001"></div>
+          <div class="assign-field"><label>IWP</label><input type="text" id="assignIwp" list="dlIwp" placeholder="e.g. IWP-0001"></div>
+          <div class="assign-field"><label>EWP</label><input type="text" id="assignEwp" list="dlEwp" placeholder="optional"></div>
+          <button class="btn btn-primary btn-sm" id="applyAssign">Apply to Selected</button>
+          <button class="btn btn-ghost btn-sm" id="clearSelection">Clear</button>
+        </div>
+        <div class="assign-note">Only fields you fill in will be applied — leave a field blank to keep each element's existing value. Start typing a field to pick from codes already used in this dataset, or type a brand new code to create one.</div>
+        <datalist id="dlCwa"></datalist>
+        <datalist id="dlCwp"></datalist>
+        <datalist id="dlIwp"></datalist>
+        <datalist id="dlEwp"></datalist>
+      </div>
+
       <div class="panel-body" style="padding:0;">
         <div class="tbl-scroll">
           <table class="data">
-            <thead><tr><th>Status</th><th>Element ID</th><th>Description</th><th>Discipline</th><th>CWA</th><th>CWP</th><th>IWP</th><th>Issues</th></tr></thead>
+            <thead><tr><th style="width:30px;"><input type="checkbox" id="selectAllEl"></th><th>Status</th><th>Element ID</th><th>Description</th><th>Discipline</th><th>CWA</th><th>CWP</th><th>IWP</th><th>Issues</th></tr></thead>
             <tbody id="elementsBody"></tbody>
           </table>
         </div>
@@ -395,6 +465,7 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
       <button class="btn btn-ghost" id="newAudit">↺ New Audit</button>
       <div style="display:flex;gap:10px;">
         <button class="btn" id="exportCsvBtn">↓ Export Issues (CSV)</button>
+        <button class="btn" id="exportCorrectedBtn">↓ Export Corrected Data (CSV)</button>
         <button class="btn btn-primary" id="downloadPdfBtn">⎙ Download PDF Report</button>
       </div>
     </div>
@@ -423,6 +494,9 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
     patterns:{cwa:'^CWA-\\d{3}$',cwp:'^CWP-\\d{4}$',iwp:'^IWP-\\d{4}$',ewp:'^EWP-\\d{3}$'},
     processed:[],
     issues:[],
+    selected:new Set(),
+    noAwpMode:false,
+    awpScan:null,
     charts:{}
   };
 
@@ -541,8 +615,88 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
     state.rows = rows;
     state.headers = headers.length?headers:Object.keys(rows[0]);
     guessMapping();
-    renderMappingScreen();
-    showScreen('screen-mapping');
+    const scan = scanForAwp();
+    state.awpScan = scan;
+    if(!scan.found){
+      renderNoAwpScreen(scan);
+      showScreen('screen-noawp');
+    } else {
+      renderMappingScreen();
+      showScreen('screen-mapping');
+    }
+  }
+
+  /* ===================== AUTOMATIC AWP PRESENCE SCAN ===================== */
+  // Scans every column header AND a sample of actual cell values for AWP
+  // nomenclature (CWA/CWP/IWP/EWP), so the user never has to manually confirm
+  // that a raw 3D model export genuinely has no work-packaging data.
+  function scanForAwp(){
+    const headers = state.headers;
+    const rows = state.rows;
+    const awpFields = ['cwa','cwp','iwp','ewp'];
+
+    // 1. Header-name signal (same keyword logic as guessMapping, AWP fields only)
+    const headerHits = {};
+    awpFields.forEach(f=>{
+      const def = FIELD_DEFS.find(d=>d.key===f);
+      let best=''; let bestScore=-1;
+      headers.forEach(h=>{
+        const hl = h.toLowerCase().trim();
+        def.keywords.forEach((kw,idx)=>{
+          if(hl===kw){ const score=100-idx; if(score>bestScore){bestScore=score;best=h;} }
+          else if(hl.includes(kw)){ const score=50-idx; if(score>bestScore){bestScore=score;best=h;} }
+        });
+      });
+      headerHits[f] = best || null;
+    });
+
+    // 2. Cell-content signal — catches AWP codes sitting in oddly-named or
+    //    generic/user-defined attribute columns that keyword matching misses.
+    const testers = {
+      cwa: safeRegex(state.patterns.cwa) || /\bCWA[-_]?\d+/i,
+      cwp: safeRegex(state.patterns.cwp) || /\bCWP[-_]?\d+/i,
+      iwp: safeRegex(state.patterns.iwp) || /\bIWP[-_]?\d+/i,
+      ewp: safeRegex(state.patterns.ewp) || /\bEWP[-_]?\d+/i
+    };
+    const genericAwp = /\b(CWA|CWP|IWP|EWP)[-_ ]?\d{1,6}\b/i;
+    const sampleRows = rows.slice(0, Math.min(rows.length, 500));
+    const contentHits = {};
+    headers.forEach(h=>{
+      const counts = {cwa:0,cwp:0,iwp:0,ewp:0,generic:0};
+      const samples = [];
+      sampleRows.forEach(r=>{
+        const v = String(r[h] ?? '').trim();
+        if(!v) return;
+        awpFields.forEach(f=>{ if(testers[f].test(v)) counts[f]++; });
+        if(genericAwp.test(v)){ counts.generic++; if(samples.length<3) samples.push(v); }
+      });
+      const total = counts.cwa+counts.cwp+counts.iwp+counts.ewp+counts.generic;
+      if(total>0){
+        let field = awpFields.reduce((a,b)=>counts[b]>counts[a]?b:a, 'cwa');
+        if(counts[field]===0) field = null; // only the generic pattern matched — ambiguous
+        contentHits[h] = {counts, field, samples, total};
+      }
+    });
+
+    const anyHeaderHit = awpFields.some(f=>headerHits[f]);
+    const anyContentHit = Object.keys(contentHits).length>0;
+
+    return {
+      headerHits, contentHits,
+      found: anyHeaderHit || anyContentHit,
+      columnsScanned: headers.length,
+      rowsScanned: sampleRows.length
+    };
+  }
+
+  function renderNoAwpScreen(scan){
+    document.getElementById('noAwpFileInfo').textContent =
+      `${state.fileName} — ${state.rows.length.toLocaleString()} rows, ${state.headers.length} columns scanned`;
+    const tbody = document.getElementById('noAwpColsBody');
+    tbody.innerHTML = state.headers.map(h=>{
+      const sample = state.rows[0] ? String(state.rows[0][h] ?? '') : '';
+      return `<tr><td class="mono">${escapeHtml(h)}</td><td class="mono sample-val">${escapeHtml(sample)}</td></tr>`;
+    }).join('');
   }
 
   /* ===================== MAPPING ===================== */
@@ -597,6 +751,27 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
 
   document.getElementById('backToUpload').addEventListener('click', ()=>showScreen('screen-upload'));
 
+  document.getElementById('noAwpBack').addEventListener('click', ()=>showScreen('screen-upload'));
+
+  document.getElementById('noAwpMapManually').addEventListener('click', ()=>{
+    renderMappingScreen();
+    showScreen('screen-mapping');
+  });
+
+  document.getElementById('noAwpGenerateAnyway').addEventListener('click', ()=>{
+    state.noAwpMode = true;
+    // AWP fields are confirmed absent by the scan — force them empty regardless
+    // of any weak partial guess, then run the check as-is.
+    state.mapping.cwa=''; state.mapping.cwp=''; state.mapping.iwp=''; state.mapping.ewp='';
+    if(!state.mapping.elementId){
+      // fall back to the first column as the element identifier if nothing was guessed
+      state.mapping.elementId = state.headers[0] || '';
+    }
+    runComplianceCheck();
+    showScreen('screen-dashboard');
+    renderDashboard();
+  });
+
   document.getElementById('runCheck').addEventListener('click', ()=>{
     if(!state.mapping.elementId || !state.mapping.cwp){
       alert('Please map at least "Element ID" and "CWP Code" before continuing.');
@@ -617,7 +792,8 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
   });
 
   document.getElementById('newAudit').addEventListener('click', ()=>{
-    state.rows=[]; state.headers=[]; state.processed=[]; state.issues=[];
+    state.rows=[]; state.headers=[]; state.processed=[]; state.issues=[]; state.selected.clear();
+    state.noAwpMode=false; state.awpScan=null;
     fileInput.value='';
     showScreen('screen-upload');
   });
@@ -629,11 +805,6 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
 
   function runComplianceCheck(){
     const m = state.mapping;
-    const reCwa = safeRegex(state.patterns.cwa);
-    const reCwp = safeRegex(state.patterns.cwp);
-    const reIwp = safeRegex(state.patterns.iwp);
-    const reEwp = safeRegex(state.patterns.ewp);
-
     const processed = state.rows.map((r,idx)=>({
       _idx:idx,
       id: (m.elementId? String(r[m.elementId]??'').trim() : ('ROW-'+idx)) || ('ROW-'+idx),
@@ -646,6 +817,18 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
       ewp: m.ewp? String(r[m.ewp]??'').trim() : '',
       issues:[]
     }));
+    state.processed = processed;
+    computeIssues();
+  }
+
+  function computeIssues(){
+    const m = state.mapping;
+    const reCwa = safeRegex(state.patterns.cwa);
+    const reCwp = safeRegex(state.patterns.cwp);
+    const reIwp = safeRegex(state.patterns.iwp);
+    const reEwp = safeRegex(state.patterns.ewp);
+    const processed = state.processed;
+    processed.forEach(row=>{ row.issues = []; });
 
     // ---- hierarchy + referential maps ----
     const cwpParents = {};   // cwp -> Set(cwa)
@@ -709,12 +892,11 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
       return order[a.severity]-order[b.severity] || b.count-a.count;
     });
 
-    state.processed = processed;
     state.issues = issues;
   }
 
   /* ===================== DASHBOARD RENDER ===================== */
-  function renderDashboard(){
+  function refreshViews(){
     const total = state.processed.length;
     const compliant = state.processed.filter(r=>r.issues.length===0).length;
     const compliancePct = total? Math.round((compliant/total)*1000)/10 : 0;
@@ -724,6 +906,14 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
     document.getElementById('dashSub').textContent =
       `File: ${state.fileName} · ${total} elements analysed · Generated ${new Date().toLocaleString('en-GB')}`;
 
+    const banner = document.getElementById('noAwpBanner');
+    if(state.noAwpMode){
+      banner.style.display='block';
+      banner.innerHTML = `<div class="no-awp-banner"><strong>⚠ Auto-Scan Result:</strong><span>This report contained no AWP nomenclature (CWA/CWP/IWP/EWP) anywhere in its columns or values — every element below is unassigned by definition, not by a mapping error. Use the Element Browser below to start assigning work packages.</span></div>`;
+    } else {
+      banner.style.display='none';
+    }
+
     document.getElementById('cardsRow').innerHTML = `
       <div class="card"><div class="cd-label">Total Elements</div><div class="cd-val">${total.toLocaleString()}</div><div class="cd-note">from ${state.fileName}</div></div>
       <div class="card ${compliancePct>=90?'accent-green':compliancePct>=70?'accent-amber':'accent-red'}"><div class="cd-label">Overall Compliance</div><div class="cd-val">${compliancePct}%</div><div class="cd-note">${compliant.toLocaleString()} elements fully compliant</div></div>
@@ -732,8 +922,14 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
     `;
 
     renderCharts();
-    renderIssuesTable('all','');
-    renderElementsTable('all','');
+    renderIssuesTable(currentSev, document.getElementById('issueSearch').value);
+    renderElementsTable(currentSt, document.getElementById('elementSearch').value);
+    populateAssignDatalists();
+    updateAssignBar();
+  }
+
+  function renderDashboard(){
+    refreshViews();
 
     document.getElementById('issueSearch').oninput = e=>renderIssuesTable(currentSev,e.target.value);
     document.getElementById('elementSearch').oninput = e=>renderElementsTable(currentSt,e.target.value);
@@ -753,6 +949,7 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
       };
     });
   }
+
 
   let currentSev='all', currentSt='all';
 
@@ -918,6 +1115,7 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
     const shown = list.slice(0,500);
     body.innerHTML = shown.length ? shown.map(r=>`
       <tr>
+        <td class="chk-cell"><input type="checkbox" class="el-chk" data-idx="${r._idx}" ${state.selected.has(r._idx)?'checked':''}></td>
         <td><span class="badge ${r.issues.length?'fail':'pass'}">${r.issues.length?'FAILED':'PASSED'}</span></td>
         <td class="mono">${escapeHtml(r.id)}</td>
         <td>${escapeHtml(r.description)||'—'}</td>
@@ -926,11 +1124,74 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
         <td class="mono">${escapeHtml(r.cwp)||'—'}</td>
         <td class="mono">${escapeHtml(r.iwp)||'—'}</td>
         <td class="mono">${r.issues.length}</td>
-      </tr>`).join('') : `<tr class="empty-row"><td colspan="8">No elements match the current filters.</td></tr>`;
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="9">No elements match the current filters.</td></tr>`;
     if(list.length>500){
-      body.innerHTML += `<tr class="empty-row"><td colspan="8">Showing 500 of ${list.length} elements. Use search to narrow the results.</td></tr>`;
+      body.innerHTML += `<tr class="empty-row"><td colspan="9">Showing 500 of ${list.length} elements. Use search to narrow the results.</td></tr>`;
     }
+    body.querySelectorAll('.el-chk').forEach(chk=>{
+      chk.addEventListener('change', e=>{
+        const idx = Number(e.target.dataset.idx);
+        if(e.target.checked) state.selected.add(idx); else state.selected.delete(idx);
+        updateAssignBar();
+      });
+    });
+    const selectAll = document.getElementById('selectAllEl');
+    selectAll.checked = shown.length>0 && shown.every(r=>state.selected.has(r._idx));
+    selectAll.onchange = ()=>{
+      shown.forEach(r=>{ if(selectAll.checked) state.selected.add(r._idx); else state.selected.delete(r._idx); });
+      renderElementsTable(currentSt, document.getElementById('elementSearch').value);
+      updateAssignBar();
+    };
   }
+
+  function updateAssignBar(){
+    const bar = document.getElementById('assignBar');
+    const count = state.selected.size;
+    document.getElementById('assignCount').textContent = `${count} selected`;
+    bar.style.display = count>0 ? 'block' : 'none';
+  }
+
+  function populateAssignDatalists(){
+    const uniq = (field)=>Array.from(new Set(state.processed.map(r=>r[field]).filter(Boolean))).sort();
+    const fill = (id, values)=>{
+      document.getElementById(id).innerHTML = values.map(v=>`<option value="${escapeHtml(v)}">`).join('');
+    };
+    fill('dlCwa', uniq('cwa'));
+    fill('dlCwp', uniq('cwp'));
+    fill('dlIwp', uniq('iwp'));
+    fill('dlEwp', uniq('ewp'));
+  }
+
+  document.getElementById('applyAssign').addEventListener('click', ()=>{
+    const vals = {
+      cwa: document.getElementById('assignCwa').value.trim(),
+      cwp: document.getElementById('assignCwp').value.trim(),
+      iwp: document.getElementById('assignIwp').value.trim(),
+      ewp: document.getElementById('assignEwp').value.trim()
+    };
+    if(!vals.cwa && !vals.cwp && !vals.iwp && !vals.ewp){
+      alert('Enter at least one code (CWA, CWP, IWP or EWP) to apply to the selected elements.');
+      return;
+    }
+    const idxSet = state.selected;
+    state.processed.forEach(row=>{
+      if(!idxSet.has(row._idx)) return;
+      if(vals.cwa) row.cwa = vals.cwa;
+      if(vals.cwp) row.cwp = vals.cwp;
+      if(vals.iwp) row.iwp = vals.iwp;
+      if(vals.ewp) row.ewp = vals.ewp;
+    });
+    computeIssues();
+    state.selected.clear();
+    ['assignCwa','assignCwp','assignIwp','assignEwp'].forEach(id=>document.getElementById(id).value='');
+    renderDashboard();
+  });
+
+  document.getElementById('clearSelection').addEventListener('click', ()=>{
+    state.selected.clear();
+    renderElementsTable(currentSt, document.getElementById('elementSearch').value);
+    updateAssignBar();
+  });
 
   function sevLabel(s){
     return {critical:'CRITICAL',high:'HIGH',medium:'MEDIUM',low:'LOW'}[s]||s.toUpperCase();
@@ -950,6 +1211,18 @@ table.data tr:hover td{background:rgba(255,255,255,0.015);}
   });
 
   document.getElementById('downloadPdfBtn').addEventListener('click', ()=>{ window.print(); });
+
+  document.getElementById('exportCorrectedBtn').addEventListener('click', ()=>{
+    const rows = [['Element ID','Description','Discipline','Install Status','CWA Code','CWP Code','IWP Code','EWP Code','Compliance Status']];
+    state.processed.forEach(r=> rows.push([r.id, r.description, r.discipline, r.status, r.cwa, r.cwp, r.iwp, r.ewp, r.issues.length?'FAILED':'PASSED']));
+    const csv = rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download = `AWP_Corrected_Elements_${dateStamp()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
 
   function dateStamp(){
     const d = new Date();
